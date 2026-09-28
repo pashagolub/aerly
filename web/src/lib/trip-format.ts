@@ -600,3 +600,15 @@ export function planTypeLabel(type: PlanType): string {
   return PLAN_TYPE_LABELS[type] ?? type;
 }
 
+/** Parse a typed 24-hour clock time into "HH:MM", or null when it isn't one.
+ * Accepts "9:30", "09:30", "0930" and "21.05", so a European typing on a phone
+ * keypad isn't made to hunt for the colon; never accepts an AM/PM suffix. */
+export function parseTime24(s: string): string | null {
+  const m = /^(\d{1,2})[:.]?(\d{2})$/.exec(s.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (h > 23 || mi > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`;
+}
+

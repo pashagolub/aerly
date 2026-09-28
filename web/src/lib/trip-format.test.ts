@@ -16,6 +16,7 @@ import {
   splitLocal,
   tzAbbrev,
   zonedTimeToUtc,
+  parseTime24,
   bandEdgeLabels,
   bandSpanDays,
   isBandedPart,
@@ -758,6 +759,24 @@ describe('splitLocal / zonedTimeToUtc', () => {
   });
   it('treats a blank tz as UTC', () => {
     expect(zonedTimeToUtc('2026-10-12', '09:00', '')).toBe('2026-10-12T09:00:00.000Z');
+  });
+});
+
+describe('parseTime24', () => {
+  it('normalises the ways a 24-hour time gets typed', () => {
+    expect(parseTime24('09:30')).toBe('09:30');
+    expect(parseTime24('9:30')).toBe('09:30');
+    expect(parseTime24('0930')).toBe('09:30');
+    expect(parseTime24('21.05')).toBe('21:05');
+    expect(parseTime24(' 23:59 ')).toBe('23:59');
+  });
+  it('rejects anything that is not a 24-hour clock time', () => {
+    expect(parseTime24('')).toBeNull();
+    expect(parseTime24('24:00')).toBeNull();
+    expect(parseTime24('12:60')).toBeNull();
+    expect(parseTime24('9:30 PM')).toBeNull();
+    expect(parseTime24('930')).toBe('09:30');
+    expect(parseTime24('9:3')).toBeNull();
   });
 });
 

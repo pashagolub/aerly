@@ -27,6 +27,7 @@ import { MAPS_NO_COORDS, resolveCoordsFromInput } from '../lib/resolve-coords';
 import {
   ACCOMMODATION_KINDS,
   isTransferType,
+  parseTime24,
   planTypeLabel,
   splitLocal,
   typeHasEnd,
@@ -268,7 +269,8 @@ function buildPatch(part: PlanPart, form: PartForm, init: PartForm): UpdatePlanP
   if (s.label !== si.label) patch.start_label = s.label.trim();
   if (s.address !== si.address) patch.start_address = s.address.trim();
   if (s.date !== si.date || s.time !== si.time || s.tz !== si.tz) {
-    if (s.date && s.time) patch.starts_at = zonedTimeToUtc(s.date, s.time, s.tz);
+    const st = parseTime24(s.time);
+    if (s.date && st) patch.starts_at = zonedTimeToUtc(s.date, st, s.tz);
     if (s.tz !== si.tz || patch.starts_at) patch.start_tz = s.tz;
   }
   // A changed coordinate override: a valid "lat, lng" pins the location (the
@@ -291,7 +293,8 @@ function buildPatch(part: PlanPart, form: PartForm, init: PartForm): UpdatePlanP
     if (e.label !== ei.label) patch.end_label = e.label.trim();
     if (e.address !== ei.address) patch.end_address = e.address.trim();
     if (e.date !== ei.date || e.time !== ei.time || e.tz !== ei.tz) {
-      if (e.date && e.time) patch.ends_at = zonedTimeToUtc(e.date, e.time, e.tz);
+      const et = parseTime24(e.time);
+      if (e.date && et) patch.ends_at = zonedTimeToUtc(e.date, et, e.tz);
       if (e.tz !== ei.tz || patch.ends_at) patch.end_tz = e.tz;
     }
     if (e.coords !== ei.coords) {
@@ -641,6 +644,10 @@ export default function PlanEditDialog({ open, plan, onClose }: Props) {
       for (const end of [f?.start, f?.end]) {
         if (end && end.coords.trim() !== '' && !coordsFromText(end.coords)) {
           setError('Enter coordinates as "lat, lng", or paste a Google Maps link.');
+          return;
+        }
+        if (end && end.time.trim() !== '' && !parseTime24(end.time)) {
+          setError('Enter times as 24-hour HH:MM, e.g. 09:30 or 21:05.');
           return;
         }
       }
@@ -1540,13 +1547,24 @@ function EndFields({
           slotProps={{ inputLabel: { shrink: true } }}
           sx={{ flex: 1 }}
         />
+        {/* A plain text box rather than type="time": the browser's native
+            time input follows the OS locale and shows AM/PM to anyone whose
+            system says en-US, so it can't promise a 24-hour clock. */}
         <TextField
           label="Time"
-          type="time"
           size="small"
           value={form.time}
           onChange={(e) => onChange('time', e.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          onBlur={() => {
+            const t = parseTime24(form.time);
+            if (t && t !== form.time) onChange('time', t);
+          }}
+          error={form.time.trim() !== '' && !parseTime24(form.time)}
+          placeholder="HH:MM"
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { inputMode: 'numeric', maxLength: 5, autoComplete: 'off' },
+          }}
           sx={{ flex: 1 }}
         />
       </Stack>

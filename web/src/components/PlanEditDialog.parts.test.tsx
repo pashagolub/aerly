@@ -129,6 +129,35 @@ describe('PlanEditDialog — part detail editors', () => {
     expect(patch.start_tz).toBe('Europe/London');
   });
 
+  it('takes a 24-hour time typed without the colon and tidies it on blur', async () => {
+    h.updatePlanPart.mockResolvedValue(part({}));
+    render_(plan({ parts: [part()] }));
+    const times = screen.getAllByLabelText(/^time$/i);
+    // A plain text box, not the browser's AM/PM-prone time input.
+    expect(times[0]).toHaveAttribute('type', 'text');
+    expect(times[0]).toHaveValue('12:35');
+    await userEvent.clear(times[0]);
+    await userEvent.type(times[0], '2105');
+    await userEvent.tab();
+    expect(times[0]).toHaveValue('21:05');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(h.updatePlanPart).toHaveBeenCalled());
+    const [, patch] = h.updatePlanPart.mock.calls[0];
+    // 21:05 BST -> 20:05Z.
+    expect(patch.starts_at).toBe('2026-10-12T20:05:00.000Z');
+  });
+
+  it('refuses to save a time that is not 24-hour HH:MM', async () => {
+    render_(plan({ parts: [part()] }));
+    const times = screen.getAllByLabelText(/^time$/i);
+    await userEvent.clear(times[0]);
+    await userEvent.type(times[0], '9pm');
+    expect(times[0]).toHaveAttribute('aria-invalid', 'true');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(h.setError).toHaveBeenCalledWith(expect.stringMatching(/24-hour HH:MM/));
+    expect(h.updatePlanPart).not.toHaveBeenCalled();
+  });
+
   it('does not write parts that were not edited', async () => {
     h.updatePlan.mockResolvedValue(undefined);
     render_(plan({ parts: [part()] }));
